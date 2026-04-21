@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Play, Plus, Check, Loader } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { use } from 'react';
 
-export default function AnimeDetailPage({ params }: { params: { id: string } }) {
+export default function AnimeDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const { data: session } = useSession();
   const [anime, setAnime] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -13,31 +15,31 @@ export default function AnimeDetailPage({ params }: { params: { id: string } }) 
   const [wlLoading, setWlLoading] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/anime/getAnime/${params.id}`)
+    fetch(`/api/anime/getAnime/${id}`)
       .then(r => r.json())
       .then(d => { setAnime(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [params.id]);
+  }, [id]);
 
   useEffect(() => {
     if (!session) return;
     fetch('/api/user/watchlist')
       .then(r => r.json())
       .then((items: any[]) => {
-        if (Array.isArray(items)) setInWatchlist(items.some(i => i.animeId === params.id));
+        if (Array.isArray(items)) setInWatchlist(items.some(i => i.animeId === id));
       });
-  }, [session, params.id]);
+  }, [session, id]);
 
   const toggleWatchlist = async () => {
     if (!session) { window.location.href = '/login'; return; }
     setWlLoading(true);
     if (inWatchlist) {
-      await fetch('/api/user/watchlist', { method: 'DELETE', body: JSON.stringify({ animeId: params.id }), headers: { 'Content-Type': 'application/json' } });
+      await fetch('/api/user/watchlist', { method: 'DELETE', body: JSON.stringify({ animeId: id }), headers: { 'Content-Type': 'application/json' } });
       setInWatchlist(false);
     } else {
       await fetch('/api/user/watchlist', {
         method: 'POST',
-        body: JSON.stringify({ animeId: params.id, animeTitle: anime?.name || anime?.title, animePoster: anime?.image || anime?.poster, animeStatus: anime?.status }),
+        body: JSON.stringify({ animeId: id, animeTitle: anime?.name || anime?.title, animePoster: anime?.image || anime?.poster, animeStatus: anime?.status }),
         headers: { 'Content-Type': 'application/json' },
       });
       setInWatchlist(true);
@@ -67,16 +69,12 @@ export default function AnimeDetailPage({ params }: { params: { id: string } }) 
 
   return (
     <div className="detail-container">
-      {/* Poster */}
       <div>
         <img src={poster} alt={title} className="detail-poster"
           onError={(e) => { (e.target as HTMLImageElement).src = '/files/images/no_poster.jpg'; }} />
       </div>
-
-      {/* Info */}
       <div>
         <h1 className="detail-title">{title}</h1>
-
         <div className="detail-genres">
           {genres.map((g: any) => (
             <span key={typeof g === 'string' ? g : g.name} className="genre-tag">
@@ -84,16 +82,13 @@ export default function AnimeDetailPage({ params }: { params: { id: string } }) 
             </span>
           ))}
         </div>
-
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
           {anime.status && <span className="hero-tag">{anime.status}</span>}
           {anime.releaseDate && <span className="hero-tag">{anime.releaseDate}</span>}
           {anime.totalEpisodes && <span className="hero-tag">{anime.totalEpisodes} eps</span>}
           {anime.type && <span className="hero-tag">{anime.type}</span>}
         </div>
-
         {desc && <p className="detail-desc">{desc}</p>}
-
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           {firstEpId && (
             <Link href={`/watch/${firstEpId}`} className="btn btn-primary">
@@ -101,12 +96,10 @@ export default function AnimeDetailPage({ params }: { params: { id: string } }) 
             </Link>
           )}
           <button className="btn btn-ghost" onClick={toggleWatchlist} disabled={wlLoading}>
-            {wlLoading ? <Loader size={14} className="spin" /> : inWatchlist ? <Check size={14} /> : <Plus size={14} />}
+            {wlLoading ? <Loader size={14} /> : inWatchlist ? <Check size={14} /> : <Plus size={14} />}
             {inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}
           </button>
         </div>
-
-        {/* Episode List */}
         {episodes.length > 0 && (
           <>
             <h3 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--muted)', marginBottom: '0.75rem' }}>
